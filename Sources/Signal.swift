@@ -403,22 +403,9 @@ public final class Signal<Value, Error: Swift.Error> {
 	}
 }
 
-/// A protocol used to constraint `Signal` operators.
-public protocol SignalProtocol {
-	/// The type of values being sent on the signal.
-	associatedtype Value
-
-	/// The type of error that can occur on the signal. If errors aren't
-	/// possible then `NoError` can be used.
-	associatedtype Error: Swift.Error
-
-	/// Extracts a signal from the receiver.
-	var signal: Signal<Value, Error> { get }
-}
-
-extension Signal: SignalProtocol {
-	public var signal: Signal {
-		return self
+extension Signal: ExpressibleBySignalProducer {
+	public var producer: SignalProducer<Value, Error> {
+		return SignalProducer(self)
 	}
 }
 
@@ -936,7 +923,7 @@ extension Signal {
 		precondition(count >= 0)
 
 		if count == 0 {
-			return signal
+			return self
 		}
 
 		return Signal { observer in
@@ -1038,7 +1025,7 @@ extension Signal {
 
 			_ = disposed.map(disposable.add)
 
-			disposable += signal.observe { receivedEvent in
+			disposable += self.observe { receivedEvent in
 				event?(receivedEvent)
 
 				switch receivedEvent {

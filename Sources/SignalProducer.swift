@@ -222,19 +222,19 @@ extension SignalProducer where Error == AnyError {
 	}
 }
 
-/// A protocol used to constraint `SignalProducer` operators.
-public protocol SignalProducerProtocol {
-	/// The type of values being sent on the producer
+/// Represents reactive primitives that can be represented by `Signalproducer`.
+public protocol ExpressibleBySignalProducer {
+	/// The type of values being sent by `self`.
 	associatedtype Value
-	/// The type of error that can occur on the producer. If errors aren't possible
-	/// then `NoError` can be used.
+
+	/// The type of error that can occur on `self`.
 	associatedtype Error: Swift.Error
 
-	/// Extracts a signal producer from the receiver.
+	/// The `SignalProducer` representation of `self`.
 	var producer: SignalProducer<Value, Error> { get }
 }
 
-extension SignalProducer: SignalProducerProtocol {
+extension SignalProducer: ExpressibleBySignalProducer {
 	public var producer: SignalProducer {
 		return self
 	}
@@ -794,29 +794,8 @@ extension SignalProducer {
 	///
 	/// - returns: A producer that, when started, will yield a tuple containing
 	///            values of `self` and given producer.
-	public func combineLatest<U>(with other: SignalProducer<U, Error>) -> SignalProducer<(Value, U), Error> {
-		return SignalProducer.combineLatest(self, other)
-	}
-
-	/// Combine the latest value of the receiver with the latest value from
-	/// the given signal.
-	///
-	/// - note: The returned producer will not send a value until both inputs
-	///         have sent at least one value each. 
-	///
-	/// - note: If either input is interrupted, the returned producer will also
-	///         be interrupted.
-	///
-	/// - note: The returned producer will not complete until both inputs
-	///         complete.
-	///
-	/// - parameters:
-	///   - other: A signal to combine `self`'s value with.
-	///
-	/// - returns: A producer that, when started, will yield a tuple containing
-	///            values of `self` and given signal.
-	public func combineLatest<U>(with other: Signal<U, Error>) -> SignalProducer<(Value, U), Error> {
-		return SignalProducer.combineLatest(self, SignalProducer<U, Error>(other))
+	public func combineLatest<Other: ExpressibleBySignalProducer>(with other: Other) -> SignalProducer<(Value, Other.Value), Error> where Other.Error == Error {
+		return SignalProducer.combineLatest(self, other.producer)
 	}
 
 	/// Delay `value` and `completed` events by the given interval, forwarding
