@@ -1323,6 +1323,31 @@ extension SignalProducer {
 	public func timeout(after interval: TimeInterval, raising error: Error, on scheduler: DateScheduler) -> SignalProducer<Value, Error> {
 		return lift { $0.timeout(after: interval, raising: error, on: scheduler) }
 	}
+
+	/// Forward events from `self` until `interval`. Then if producer isn't
+	/// completed yet, sends `event` and terminates.
+	///
+	/// - note: If `event` is a value, the returned producer will automatically
+	///         complete after sending it.
+	///
+	/// - note: If the interval is 0, the timeout will be scheduled immediately.
+	///         The signal must complete synchronously (or on a faster
+	///         scheduler) to avoid the timeout.
+	///
+	/// - precondition: `interval` must be non-negative number.
+	///
+	/// - parameters:
+	///   - event: An event to terminate with if `self` is not completed
+	///            when `interval` passes.
+	///   - interval: Number of seconds to wait for `self` to complete.
+	///   - scheduler: A scheduler to deliver error on.
+	///
+	/// - returns: A signal that sends events for at most `interval` seconds,
+	///            then, if not `completed` - sends `error` with failed event
+	///            on `scheduler`.
+	public func timeout(after interval: TimeInterval, sending event: ProducedSignal.Event, on scheduler: DateScheduler) -> SignalProducer<Value, Error> {
+		return lift { $0.timeout(after: interval, sending: event, on: scheduler) }
+	}
 }
 
 extension SignalProducer where Value: OptionalProtocol {
@@ -1372,7 +1397,7 @@ extension SignalProducer where Error == NoError {
 	///   - interval: Number of seconds to wait for `self` to complete.
 	///   - error: Error to send with `failed` event if `self` is not completed
 	///            when `interval` passes.
-	///   - scheudler: A scheduler to deliver error on.
+	///   - scheduler: A scheduler to deliver error on.
 	///
 	/// - returns: A producer that sends events for at most `interval` seconds,
 	///            then, if not `completed` - sends `error` with `failed` event
@@ -1383,6 +1408,35 @@ extension SignalProducer where Error == NoError {
 		on scheduler: DateScheduler
 	) -> SignalProducer<Value, NewError> {
 		return lift { $0.timeout(after: interval, raising: error, on: scheduler) }
+	}
+
+	/// Forward events from `self` until `interval`. Then if producer isn't
+	/// completed yet, sends `event` and terminates.
+	///
+	/// - note: If `event` is a value, the returned producer will automatically
+	///         complete after sending it.
+	///
+	/// - note: If the interval is 0, the timeout will be scheduled immediately.
+	///         The signal must complete synchronously (or on a faster
+	///         scheduler) to avoid the timeout.
+	///
+	/// - precondition: `interval` must be non-negative number.
+	///
+	/// - parameters:
+	///   - event: An event to terminate with if `self` is not completed
+	///            when `interval` passes.
+	///   - interval: Number of seconds to wait for `self` to complete.
+	///   - scheduler: A scheduler to deliver error on.
+	///
+	/// - returns: A signal that sends events for at most `interval` seconds,
+	///            then, if not `completed` - sends `error` with failed event
+	///            on `scheduler`.
+	public func timeout<NewError: Swift.Error>(
+		after interval: TimeInterval,
+		sending event: SignalProducer<Value, NewError>.ProducedSignal.Event,
+		on scheduler: DateScheduler
+	) -> SignalProducer<Value, NewError> {
+		return lift { $0.timeout(after: interval, sending: event, on: scheduler) }
 	}
 
 	/// Apply a throwable action to every value from `self`, and forward the values
