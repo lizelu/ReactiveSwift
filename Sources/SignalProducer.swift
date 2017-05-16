@@ -18,6 +18,7 @@ import Result
 /// different!
 public struct SignalProducer<Value, Error: Swift.Error> {
 	public typealias ProducedSignal = Signal<Value, Error>
+	public typealias Event = ProducedSignal.Event
 
 	private let startHandler: (Signal<Value, Error>.Observer, CompositeDisposable) -> Void
 
@@ -818,7 +819,7 @@ extension SignalProducer {
 	///         send the `Event` itself and then interrupt.
 	///
 	/// - returns: A producer that sends events as its values.
-	public func materialize() -> SignalProducer<ProducedSignal.Event, NoError> {
+	public func materialize() -> SignalProducer<Event, NoError> {
 		return lift { $0.materialize() }
 	}
 
@@ -1345,7 +1346,7 @@ extension SignalProducer {
 	/// - returns: A signal that sends events for at most `interval` seconds,
 	///            then, if not `completed` - sends `error` with failed event
 	///            on `scheduler`.
-	public func timeout(after interval: TimeInterval, sending event: ProducedSignal.Event, on scheduler: DateScheduler) -> SignalProducer<Value, Error> {
+	public func timeout(after interval: TimeInterval, sending event: Event, on scheduler: DateScheduler) -> SignalProducer<Value, Error> {
 		return lift { $0.timeout(after: interval, sending: event, on: scheduler) }
 	}
 }
@@ -1433,7 +1434,7 @@ extension SignalProducer where Error == NoError {
 	///            on `scheduler`.
 	public func timeout<NewError: Swift.Error>(
 		after interval: TimeInterval,
-		sending event: SignalProducer<Value, NewError>.ProducedSignal.Event,
+		sending event: SignalProducer<Value, NewError>.Event,
 		on scheduler: DateScheduler
 	) -> SignalProducer<Value, NewError> {
 		return lift { $0.timeout(after: interval, sending: event, on: scheduler) }
@@ -1609,7 +1610,7 @@ extension SignalProducer {
 	public func on(
 		starting: (() -> Void)? = nil,
 		started: (() -> Void)? = nil,
-		event: ((ProducedSignal.Event) -> Void)? = nil,
+		event: ((Event) -> Void)? = nil,
 		failed: ((Error) -> Void)? = nil,
 		completed: (() -> Void)? = nil,
 		interrupted: (() -> Void)? = nil,
