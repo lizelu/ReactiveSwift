@@ -18,11 +18,18 @@ import Result
 ///
 /// `Action` enforces serial execution, and disables the `Action` during the execution.
 public final class Action<Input, Output, Error: Swift.Error> {
-	private let deinitToken: Lifetime.Token
+	private enum Availability {
+		case enabledIdle
+		case enabledExecuting
+		case disabledIdle
+		case disabledExecuting
+	}
 
-	private let executeClosure: (_ state: Any, _ input: Input) -> SignalProducer<Output, Error>
+	private let execute: (Action<Input, Output, Error>, Input) -> SignalProducer<Output, ActionError<Error>>
 	private let eventsObserver: Signal<Signal<Output, Error>.Event, NoError>.Observer
 	private let disabledErrorsObserver: Signal<(), NoError>.Observer
+
+	private let deinitToken: Lifetime.Token
 
 	/// The lifetime of the `Action`.
 	public let lifetime: Lifetime
@@ -37,13 +44,17 @@ public final class Action<Input, Output, Error: Swift.Error> {
 	///
 	/// In other words, this sends every value from every unit of work that the `Action`
 	/// executes.
-	public let values: Signal<Output, NoError>
+	public private(set) lazy var values: Signal<Output, NoError> = { [unowned self] in
+		return self.events.filterMap { $0.value }
+	}()
 
 	/// A signal of all errors generated from all units of work of the `Action`.
 	///
 	/// In other words, this sends every error from every unit of work that the `Action`
 	/// executes.
-	public let errors: Signal<Error, NoError>
+	public private(set) lazy var errors: Signal<Error, NoError> = { [unowned self] in
+		return self.events.filterMap { $0.error }
+	}()
 
 	/// A signal of all failed attempts to start a unit of work of the `Action`.
 	public let disabledErrors: Signal<(), NoError>
@@ -52,15 +63,15 @@ public final class Action<Input, Output, Error: Swift.Error> {
 	///
 	/// In other words, this will send completed events from every signal generated
 	/// by each SignalProducer returned from apply().
-	public let completed: Signal<(), NoError>
+	public private(set) lazy var completed: Signal<(), NoError> = { [unowned self] in
+		return self.events.filter { $0.isCompleted }.map { _ in }
+	}()
 
 	/// Whether the action is currently executing.
 	public let isExecuting: Property<Bool>
 
 	/// Whether the action is currently enabled.
 	public let isEnabled: Property<Bool>
-
-	private let state: MutableProperty<ActionState>
 
 	/// Initializes an `Action` that would be conditionally enabled depending on its
 	/// state.
@@ -80,39 +91,103 @@ public final class Action<Input, Output, Error: Swift.Error> {
 	///
 	/// - parameters:
 	///   - state: A property to be the state of the `Action`.
-	///   - enabledIf: A predicate which determines the availability of the `Action`,
+	///   - isEnabled: A predicate which determines the availability of the `Action`,
 	///                given the latest `Action` state.
 	///   - execute: A closure that produces a unit of work, as `SignalProducer`, to be
 	///              executed by the `Action`.
-	public init<State: PropertyProtocol>(state property: State, enabledIf isEnabled: @escaping (State.Value) -> Bool, execute: @escaping (State.Value, Input) -> SignalProducer<Output, Error>) {
+	public init<State: PropertyProtocol>(state: State, enabledIf isEnabled: @escaping (State.Value) -> Bool, execute: @escaping (State.Value, Input) -> SignalProducer<Output, Error>) {
+		typealias ActionState = (availability: Availability, value: State.Value)
+		let isUserEnabled = isEnabled
+
 		deinitToken = Lifetime.Token()
 		lifetime = Lifetime(deinitToken)
-		
-		// Retain the `property` for the created `Action`.
-		lifetime.observeEnded { _ = property }
 
-		executeClosure = { state, input in execute(state as! State.Value, input) }
+		// `isExecuting` and `isEnabled` should use their own locks, so that legitimate
+		// feedbacks would not deadlock.
+		let initial = (availability: Availability.enabledIdle, value: state.value)
+		let actionState = MutableProperty<ActionState>(initial)
+		let isExecuting = MutableProperty(false)
+		let isEnabled = MutableProperty(true)
+		self.isExecuting = Property(capturing: isExecuting)
+		self.isEnabled = Property(capturing: isEnabled)
+
+		// Associate the state property with the created `Action`.
+		lifetime.observeEnded { _ = state }
 
 		(events, eventsObserver) = Signal<Signal<Output, Error>.Event, NoError>.pipe()
 		(disabledErrors, disabledErrorsObserver) = Signal<(), NoError>.pipe()
 
-		values = events.filterMap { $0.value }
-		errors = events.filterMap { $0.error }
-		completed = events.filter { $0.isCompleted }.map { _ in }
+		let disposable = state.producer.startWithValues { value in
+			actionState.modify { state in
+				state.value = value
 
-		let initial = ActionState(value: property.value, isEnabled: { isEnabled($0 as! State.Value) })
-		state = MutableProperty(initial)
+				switch (isUserEnabled(value), state.availability) {
+				case (true, .disabledIdle):
+					state.availability = .enabledIdle
+					isEnabled.value = true
 
-		property.signal
-			.take(during: state.lifetime)
-			.observeValues { [weak state] newValue in
-				state?.modify {
-					$0.value = newValue
+				case (true, .disabledExecuting):
+					state.availability = .enabledExecuting
+
+				case (false, .enabledIdle):
+					state.availability = .disabledIdle
+					isEnabled.value = false
+
+				case (false, .enabledExecuting):
+					state.availability = .disabledExecuting
+
+				default:
+					break
 				}
 			}
+		}
 
-		self.isEnabled = state.map { $0.isEnabled }.skipRepeats()
-		self.isExecuting = state.map { $0.isExecuting }.skipRepeats()
+		lifetime.observeEnded(disposable.dispose)
+
+		self.execute = { action, input in
+			return SignalProducer { observer, disposable in
+				func tryStart() -> State.Value? {
+					return actionState.modify { state in
+						guard state.availability == .enabledIdle else {
+							return nil
+						}
+
+						state.availability = .enabledExecuting
+						isExecuting.value = true
+						isEnabled.value = false
+						return state.value
+					}
+				}
+
+				guard let state = tryStart() else {
+					observer.send(error: .disabled)
+					action.disabledErrorsObserver.send(value: ())
+					return
+				}
+
+				disposable += execute(state, input).start { event in
+					observer.action(event.mapError(ActionError.producerFailed))
+					action.eventsObserver.send(value: event)
+				}
+
+				disposable.add {
+					actionState.modify { state in
+						switch state.availability {
+						case .disabledIdle, .enabledIdle:
+							fatalError("The `Action` should not be idle at this point.")
+
+						case .disabledExecuting:
+							state.availability = .disabledIdle
+
+						case .enabledExecuting:
+							state.availability = .enabledIdle
+							isEnabled.value = true
+						}
+						isExecuting.value = false
+					}
+				}
+			}
+		}
 	}
 
 	/// Initializes an `Action` that would be conditionally enabled.
@@ -122,11 +197,11 @@ public final class Action<Input, Output, Error: Swift.Error> {
 	/// `execute` with the input value.
 	///
 	/// - parameters:
-	///   - enabledIf: A property which determines the availability of the `Action`.
+	///   - isEnabled: A property which determines the availability of the `Action`.
 	///   - execute: A closure that produces a unit of work, as `SignalProducer`, to be
 	///              executed by the `Action`.
-	public convenience init<P: PropertyProtocol>(enabledIf property: P, execute: @escaping (Input) -> SignalProducer<Output, Error>) where P.Value == Bool {
-		self.init(state: property, enabledIf: { $0 }) { _, input in
+	public convenience init<P: PropertyProtocol>(enabledIf isEnabled: P, execute: @escaping (Input) -> SignalProducer<Output, Error>) where P.Value == Bool {
+		self.init(state: isEnabled, enabledIf: { $0 }) { _, input in
 			execute(input)
 		}
 	}
@@ -162,62 +237,7 @@ public final class Action<Input, Output, Error: Swift.Error> {
 	/// - returns: A producer that forwards events generated by its started unit of work,
 	///            or emits `ActionError.disabled` if the execution attempt is failed.
 	public func apply(_ input: Input) -> SignalProducer<Output, ActionError<Error>> {
-		return SignalProducer { observer, disposable in
-			let startingState = self.state.modify { state -> Any? in
-				if state.isEnabled {
-					state.isExecuting = true
-					return state.value
-				} else {
-					return nil
-				}
-			}
-
-			guard let state = startingState else {
-				observer.send(error: .disabled)
-				self.disabledErrorsObserver.send(value: ())
-				return
-			}
-
-			self.executeClosure(state, input).startWithSignal { signal, signalDisposable in
-				disposable += signalDisposable
-
-				signal.observe { event in
-					observer.action(event.mapError(ActionError.producerFailed))
-					self.eventsObserver.send(value: event)
-				}
-			}
-
-			disposable += {
-				self.state.modify {
-					$0.isExecuting = false
-				}
-			}
-		}
-	}
-}
-
-private struct ActionState {
-	var isExecuting: Bool = false
-
-	var value: Any {
-		didSet {
-			userEnabled = userEnabledClosure(value)
-		}
-	}
-
-	private var userEnabled: Bool
-	private let userEnabledClosure: (Any) -> Bool
-
-	init(value: Any, isEnabled: @escaping (Any) -> Bool) {
-		self.value = value
-		self.userEnabled = isEnabled(value)
-		self.userEnabledClosure = isEnabled
-	}
-
-	/// Whether the action should be enabled for the given combination of user
-	/// enabledness and executing status.
-	fileprivate var isEnabled: Bool {
-		return userEnabled && !isExecuting
+		return execute(self, input)
 	}
 }
 

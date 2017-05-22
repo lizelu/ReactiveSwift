@@ -43,11 +43,11 @@ class ActionSpec: QuickSpec {
 							observer.send(value: "\(number)")
 							observer.send(value: "\(number)\(number)")
 
-							scheduler.schedule {
+							disposable += scheduler.schedule {
 								observer.sendCompleted()
 							}
 						} else {
-							scheduler.schedule {
+							disposable += scheduler.schedule {
 								observer.send(error: testError)
 							}
 						}
@@ -112,6 +112,13 @@ class ActionSpec: QuickSpec {
 				enabled.value = false
 				expect(action.isEnabled.value) == false
 				expect(action.isExecuting.value) == false
+			}
+
+			it("should not deadlock when its executing state affects its state property without constituting a feedback loop") {
+				enabled <~ action.isExecuting.negate()
+
+				let disposable = action.apply(0).start()
+				disposable.dispose()
 			}
 
 			it("should not deadlock") {
