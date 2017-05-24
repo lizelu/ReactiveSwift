@@ -50,11 +50,12 @@ is started—for example, `times`.
 A SignalProducer represents an operation that can be started on demand. Starting the operation returns a Signal on which the result(s) of the operation can be observed. This behavior is sometimes also called "cold".
 This means that a subscriber will never miss any values sent by the SignalProducer.
 */
+
 scopedExample("Subscription") {
 	let producer = SignalProducer<Int, NoError> { observer, _ in
 		print("New subscription, starting operation")
-		observer.send(value: 1)
-		observer.send(value: 2)
+		observer.send(value: 111111)
+		observer.send(value: 222222)
 	}
 
 	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })

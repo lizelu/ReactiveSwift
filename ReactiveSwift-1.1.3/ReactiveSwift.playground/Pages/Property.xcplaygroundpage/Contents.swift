@@ -26,42 +26,35 @@ import Foundation
  
  */
 scopedExample("Creation") {
+    //创建可变的属性
     let mutableProperty = MutableProperty(1)
     
-    // The value of the property can be accessed via its `value` attribute
-    print("Property has initial value \(mutableProperty.value)")
-    // The properties value can be observed via its `producer` or `signal attribute`
-    // Note, how the `producer` immediately sends the initial value, but the `signal` only sends new values
+    //为属性的修改绑定监听事件
     mutableProperty.producer.startWithValues {
-        print("mutableProperty.producer receied \($0)")
+        print("mutableProperty.producer received \($0)")
     }
+    
     mutableProperty.signal.observeValues {
         print("mutableProperty.signal received \($0)")
     }
     
-    print("---")
-    print("Setting new value for mutableProperty: 2")
+    print("\n取值： \(mutableProperty.value)\n")
+    
+    //赋值
     mutableProperty.value = 2
 
-    print("---")
-    // If a property should be exposed for readonly access, it can be wrapped in a Property
+    print("\n再次生成另一个Property，类似于装饰器")
     let property = Property(mutableProperty)
-    
-    print("Reading value of readonly property: \(property.value)")
     property.signal.observeValues {
         print("property.signal received \($0)")
     }
-    
-    // Its not possible to set the value of a Property
-//    readonlyProperty.value = 3
-    // But you can still change the value of the mutableProperty and observe its change on the property
-    print("---")
-    print("Setting new value for mutableProperty: 3")
     mutableProperty.value = 3
     
-    // Constant properties can be created by using the `Property(value:)` initializer
+    
+    //再次添加装饰器
     let constant = Property(value: 1)
-//    constant.value = 2    // The value of a constant property can not be changed
+    
+    print("\n\n")
 }
 /*:
  ### Binding
@@ -82,12 +75,13 @@ scopedExample("Binding from SignalProducer") {
         observer.send(value: 1)
         observer.send(value: 2)
     }
+    
     let property = MutableProperty(0)
     property.producer.startWithValues {
         print("Property received \($0)")
     }
  
-    // Notice how the producer will start the work as soon it is bound to the property
+    //将producerSend的值与property进行绑定
     property <~ producer
 }
 
@@ -235,39 +229,32 @@ scopedExample("`zip`") {
 }
 
 scopedExample("`flatten`") {
-    let property1 = MutableProperty("0")
-    let property2 = MutableProperty("A")
-    let property3 = MutableProperty("!")
+    let property1 = MutableProperty("one")
+    let property2 = MutableProperty("two")
+    let property3 = MutableProperty("three")
+    
+    print("改变成Property1")
     let property = MutableProperty(property1)
     // Try different merge strategies and see how the results change
     property.flatten(.latest).producer.startWithValues {
         print("Flattened property receive \($0)")
     }
+    property1.value = "0-1"
+    property2.value = "0-2"
+    property3.value = "0-3"     //NoDisplay
     
-    print("Sending new value on property1: 1")
-    property1.value = "1"
-    
-    print("Sending new value on property: property2")
+    print("\n改变成Property2")
     property.value = property2
+    property1.value = "1-1"     //NoDisplay
+    property2.value = "1-2"
+    property3.value = "1-3"
     
-    print("Sending new value on property1: 2")
-    property1.value = "2"
-    
-    print("Sending new value on property2: B")
-    property2.value = "B"
-    
-    print("Sending new value on property1: 3")
-    property1.value = "3"
-    
-    print("Sending new value on property: property3")
+    print("\n改变成Property3")
     property.value = property3
+    property1.value = "2-1"     //NoDisplay
+    property2.value = "2-2"     //NoDisplay
+    property3.value = "2-3"
     
-    print("Sending new value on property3: ?")
-    property3.value = "?"
-    
-    print("Sending new value on property2: C")
-    property2.value = "C"
-    
-    print("Sending new value on property1: 4")
-    property1.value = "4"
+    print("\n")
+
 }
