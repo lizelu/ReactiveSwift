@@ -52,26 +52,18 @@ A Signal represents and event stream that is already "in progress", sometimes al
 Furthermore, the subscription to a signal does not trigger any side effects
 */
 scopedExample("Subscription") {
-	// Signal.pipe is a way to manually control a signal. the returned observer can be used to send values to the signal
-	let (signal, observer) = Signal<Int, NoError>.pipe()
+
+	let (signal, sendMessage) = Signal<Int, NoError>.pipe()
 
 	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") } )
 	let subscriber2 = Observer<Int, NoError>(value: { print("Subscriber 2 received \($0)") } )
 
-	print("Subscriber 1 subscribes to the signal")
 	signal.observe(subscriber1)
+	sendMessage.send(value: 10)
 
-	print("Send value `10` on the signal")
-	// subscriber1 will receive the value
-	observer.send(value: 10)
-
-	print("Subscriber 2 subscribes to the signal")
-	// Notice how nothing happens at this moment, i.e. subscriber2 does not receive the previously sent value
+    print("\n")
 	signal.observe(subscriber2)
-
-	print("Send value `20` on the signal")
-	// Notice that now, subscriber1 and subscriber2 will receive the value
-	observer.send(value: 20)
+	sendMessage.send(value: 20)
 }
 
 /*:

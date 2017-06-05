@@ -53,19 +53,15 @@ This means that a subscriber will never miss any values sent by the SignalProduc
 
 scopedExample("Subscription") {
 	let producer = SignalProducer<Int, NoError> { observer, _ in
-		print("New subscription, starting operation")
+
 		observer.send(value: 111111)
-		observer.send(value: 222222)
+
 	}
 
 	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })
 	let subscriber2 = Observer<Int, NoError>(value: { print("Subscriber 2 received \($0)") })
-
-	print("Subscriber 1 subscribes to producer")
+    
 	producer.start(subscriber1)
-
-	print("Subscriber 2 subscribes to producer")
-	// Notice, how the producer will start the work again
 	producer.start(subscriber2)
 }
 
