@@ -58,12 +58,21 @@ scopedExample("Subscription") {
 	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") } )
 	let subscriber2 = Observer<Int, NoError>(value: { print("Subscriber 2 received \($0)") } )
 
-	signal.observe(subscriber1)
+	let actionDisposable1 = signal.observe(subscriber1)
 	sendMessage.send(value: 10)
 
     print("\n")
 	signal.observe(subscriber2)
 	sendMessage.send(value: 20)
+    
+    print("\n")
+    print(actionDisposable1?.isDisposed)
+    actionDisposable1?.dispose()        //取消subscriber1对Signal信号量的观察
+    
+    print(actionDisposable1?.isDisposed)
+    sendMessage.send(value: 30)
+    
+    
 }
 
 /*:
@@ -71,16 +80,21 @@ scopedExample("Subscription") {
 A Signal that completes immediately without emitting any value.
 */
 scopedExample("`empty`") {
+    
 	let emptySignal = Signal<Int, NoError>.empty
 
 	let observer = Observer<Int, NoError>(
 		value: { _ in print("value not called") },
 		failed: { _ in print("error not called") },
 		completed: { print("completed not called") },
+		
+		//每次关联Observer时都会执行该闭包
 		interrupted: { print("interrupted called") }
 	)
 
 	emptySignal.observe(observer)
+    emptySignal.observe(observer)
+    
 }
 
 /*:
@@ -111,18 +125,21 @@ a function that returns a unique value for each sent value can help you reduce
 the memory footprint.
 */
 scopedExample("`uniqueValues`") {
-	let (signal, observer) = Signal<Int, NoError>.pipe()
+	let (signal, sender) = Signal<Int, NoError>.pipe()
+    let uniqueSignal = signal.uniqueValues()
+    
 	let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
-	let uniqueSignal = signal.uniqueValues()
-
 	uniqueSignal.observe(subscriber)
-	observer.send(value: 1)
-	observer.send(value: 2)
-	observer.send(value: 3)
-	observer.send(value: 4)
-	observer.send(value: 3)
-	observer.send(value: 3)
-	observer.send(value: 5)
+    
+	sender.send(value: 1)
+	sender.send(value: 2)
+	sender.send(value: 3)
+    sender.send(value: 2)   //not print
+    sender.send(value: 2)   //not print
+	sender.send(value: 4)
+	sender.send(value: 3)   //not print
+	sender.send(value: 3)   //not print
+	sender.send(value: 5)
 }
 
 /*:
@@ -130,13 +147,13 @@ scopedExample("`uniqueValues`") {
 Maps each value in the signal to a new value.
 */
 scopedExample("`map`") {
-	let (signal, observer) = Signal<Int, NoError>.pipe()
+	let (signal, sender) = Signal<Int, NoError>.pipe()
 	let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
+    
 	let mappedSignal = signal.map { $0 * 2 }
-
 	mappedSignal.observe(subscriber)
-	print("Send value `10` on the signal")
-	observer.send(value: 10)
+    
+	sender.send(value: 10)
 }
 
 /*:
@@ -144,7 +161,7 @@ scopedExample("`map`") {
 Maps errors in the signal to a new error.
 */
 scopedExample("`mapError`") {
-	let (signal, observer) = Signal<Int, NSError>.pipe()
+	let (signal, sender) = Signal<Int, NSError>.pipe()
 	let subscriber = Observer<Int, NSError>(failed: { print("Subscriber received error: \($0)") } )
 	let mappedErrorSignal = signal.mapError { (error:NSError) -> NSError in
 		let userInfo = [NSLocalizedDescriptionKey: "🔥"]
@@ -154,8 +171,8 @@ scopedExample("`mapError`") {
 	}
 
 	mappedErrorSignal.observe(subscriber)
-	print("Send error `NSError(domain: \"com.reactivecocoa.errordomain\", code: 4815, userInfo: nil)` on the signal")
-	observer.send(error: NSError(domain: "com.reactivecocoa.errordomain", code: 4815, userInfo: nil))
+	
+	sender.send(error: NSError(domain: "com.reactivecocoa.errordomain", code: 4815, userInfo: nil))
 }
 
 /*:
@@ -201,7 +218,7 @@ Returns a signal that will yield the first `count` values from `self`
 scopedExample("`take(first:)`") {
 	let (signal, observer) = Signal<Int, NoError>.pipe()
 	let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
-	let takeSignal = signal.take(first: 2)
+	let takeSignal = signal.take(first: 3)
 
 	takeSignal.observe(subscriber)
 	observer.send(value: 1)
@@ -230,3 +247,31 @@ scopedExample("`collect`") {
 	observer.send(value: 4)
 	observer.sendCompleted()
 }
+
+
+scopedExample("`observer_action`") {
+    let (signal, observer) = Signal<Int, NSError>.pipe()
+    
+    signal.observe({ (event) in
+        if case let Event.value(value) = event {
+            print("value: \(value)")
+        }
+        
+        //其他三个事件省略
+    })
+    
+    signal.observeResult({ (result) in
+        if case let Result.success(value) = result {
+            print("success: \(value)")
+        }
+        
+        if case let Result.failure(error) = result {
+            print("error: \(error)")
+        }
+    })
+    
+    observer.send(value: 1000)
+    observer.send(error: NSError(domain: "error.test", code: 0000, userInfo: nil))
+
+}
+
