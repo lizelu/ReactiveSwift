@@ -147,13 +147,17 @@ scopedExample("`uniqueValues`") {
 Maps each value in the signal to a new value.
 */
 scopedExample("`map`") {
-	let (signal, sender) = Signal<Int, NoError>.pipe()
-	let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
     
-	let mappedSignal = signal.map { $0 * 2 }
+	let (signal, observer) = Signal<Int, NoError>.pipe()
+    
+	let subscriber = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
+    let mappedSignal: Signal<String, NoError> = signal.map({ (value) -> String in
+        return "映射规则:\(value * 3)"
+    })
 	mappedSignal.observe(subscriber)
     
-	sender.send(value: 10)
+	observer.send(value: 10)
+    
 }
 
 /*:
@@ -250,16 +254,29 @@ scopedExample("`collect`") {
 
 
 scopedExample("`observer_action`") {
+
     let (signal, observer) = Signal<Int, NSError>.pipe()
     
+    //observe(action)
     signal.observe({ (event) in
         if case let Event.value(value) = event {
             print("value: \(value)")
         }
         
-        //其他三个事件省略
+        if case let Event.failed(error) = event {
+            print("error: \(error)")
+        }
+        
+        if case Event.completed = event {
+            print("completed")
+        }
+        
+        if case Event.interrupted = event {
+            print("interrupted")
+        }
     })
     
+    //observeResult(result)
     signal.observeResult({ (result) in
         if case let Result.success(value) = result {
             print("success: \(value)")
@@ -270,8 +287,28 @@ scopedExample("`observer_action`") {
         }
     })
     
+    //observeCompleted(completed)
+    signal.observeCompleted {
+        print("completed事件")
+    }
+    
+    //observeFailed(error)
+    signal.observeFailed({ (error) in
+        print("Failed事件\(error)")
+    })
+    
+    //observeInterrupted(interrupted)
+    signal.observeInterrupted {
+        print("interrupted事件")
+    }
+    
     observer.send(value: 1000)
     observer.send(error: NSError(domain: "error.test", code: 0000, userInfo: nil))
+    observer.sendCompleted()
+    observer.sendInterrupted()
+    
+    
+    print("\n\n\n")
 
 }
 
