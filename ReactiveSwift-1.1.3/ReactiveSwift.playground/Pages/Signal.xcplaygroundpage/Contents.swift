@@ -58,18 +58,19 @@ scopedExample("Subscription") {
 	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") } )
 	let subscriber2 = Observer<Int, NoError>(value: { print("Subscriber 2 received \($0)") } )
 
-    signal.observe(subscriber1)
+	let actionDisposable1 = signal.observe(subscriber1)
+	sendMessage.send(value: 10)
+
+    print("\n")
 	signal.observe(subscriber2)
-    
 	sendMessage.send(value: 20)
     
-//    print("\n")
-//    print(actionDisposable1?.isDisposed)
-//    actionDisposable1?.dispose()        //取消subscriber1对Signal信号量的观察
-//    
-//    print(actionDisposable1?.isDisposed)
-//    
-//    sendMessage.send(value: 30)
+    print("\n")
+    print(actionDisposable1?.isDisposed)
+    actionDisposable1?.dispose()        //取消subscriber1对Signal信号量的观察
+    
+    print(actionDisposable1?.isDisposed)
+    sendMessage.send(value: 30)
     
     
 }
@@ -153,21 +154,8 @@ scopedExample("`map`") {
         return "映射规则:\(value * 3)"
     })
     
-    let takeSignal = mappedSignal.take(first: 10)
-    
-    let filter = takeSignal.filter({ (value) -> Bool in
-        return false
-    })
-    
-    let observer0 = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
-    let observer1 = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
-    let observe2 = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
-    
-    
-    takeSignal.observe(observer)
-    filter.observe(observer1)
-    filter.observe(observer2)
-	
+    let subscriber = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
+	mappedSignal.observe(subscriber)
     
 	observer.send(value: 10)
     
@@ -280,7 +268,7 @@ scopedExample("`collect`") {
 scopedExample("`collect_predicate1`") {
     let (signal, observer) = Signal<Int, NoError>.pipe()
     
-    let collectSignal = signal.collect { values in values.reduce(0, +) == 8  }
+    let collectSignal = signal.collect { values in values.reduce(0, +) == 8 }
     collectSignal.observeValues { print($0) }
     
     observer.send(value: 1)
