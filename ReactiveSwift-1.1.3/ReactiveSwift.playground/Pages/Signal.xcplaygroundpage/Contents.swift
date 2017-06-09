@@ -58,19 +58,18 @@ scopedExample("Subscription") {
 	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") } )
 	let subscriber2 = Observer<Int, NoError>(value: { print("Subscriber 2 received \($0)") } )
 
-	let actionDisposable1 = signal.observe(subscriber1)
-	sendMessage.send(value: 10)
-
-    print("\n")
+    signal.observe(subscriber1)
 	signal.observe(subscriber2)
+    
 	sendMessage.send(value: 20)
     
-    print("\n")
-    print(actionDisposable1?.isDisposed)
-    actionDisposable1?.dispose()        //取消subscriber1对Signal信号量的观察
-    
-    print(actionDisposable1?.isDisposed)
-    sendMessage.send(value: 30)
+//    print("\n")
+//    print(actionDisposable1?.isDisposed)
+//    actionDisposable1?.dispose()        //取消subscriber1对Signal信号量的观察
+//    
+//    print(actionDisposable1?.isDisposed)
+//    
+//    sendMessage.send(value: 30)
     
     
 }
@@ -150,11 +149,25 @@ scopedExample("`map`") {
     
 	let (signal, observer) = Signal<Int, NoError>.pipe()
     
-	let subscriber = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
     let mappedSignal: Signal<String, NoError> = signal.map({ (value) -> String in
         return "映射规则:\(value * 3)"
     })
-	mappedSignal.observe(subscriber)
+    
+    let takeSignal = mappedSignal.take(first: 10)
+    
+    let filter = takeSignal.filter({ (value) -> Bool in
+        return false
+    })
+    
+    let observer0 = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
+    let observer1 = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
+    let observe2 = Observer<String, NoError>(value: { print("Subscriber received \($0)") } )
+    
+    
+    takeSignal.observe(observer)
+    filter.observe(observer1)
+    filter.observe(observer2)
+	
     
 	observer.send(value: 10)
     
@@ -166,6 +179,7 @@ Maps errors in the signal to a new error.
 */
 scopedExample("`mapError`") {
 	let (signal, sender) = Signal<Int, NSError>.pipe()
+    
 	let subscriber = Observer<Int, NSError>(failed: { print("Subscriber received error: \($0)") } )
 	let mappedErrorSignal = signal.mapError { (error:NSError) -> NSError in
 		let userInfo = [NSLocalizedDescriptionKey: "🔥"]
@@ -184,17 +198,20 @@ scopedExample("`mapError`") {
 Preserves only the values of the signal that pass the given predicate.
 */
 scopedExample("`filter`") {
+    
 	let (signal, observer) = Signal<Int, NoError>.pipe()
-	let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
-	// subscriber will only receive events with values greater than 12
-	let filteredSignal = signal.filter { $0 > 12 ? true : false }
-
+    
+    let filteredSignal: Signal<Int, NoError> = signal.filter { $0 > 12 ? true : false }
+    
+    let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
 	filteredSignal.observe(subscriber)
+    
 	observer.send(value: 10)
 	observer.send(value: 11)
 	observer.send(value: 12)
 	observer.send(value: 13)
 	observer.send(value: 14)
+    
 }
 
 /*:
@@ -220,15 +237,20 @@ scopedExample("`skipNil`") {
 Returns a signal that will yield the first `count` values from `self`
 */
 scopedExample("`take(first:)`") {
+    
 	let (signal, observer) = Signal<Int, NoError>.pipe()
+    
+    let takeSignal = signal.take(first: 3)
+    
 	let subscriber = Observer<Int, NoError>(value: { print("Subscriber received \($0)") } )
-	let takeSignal = signal.take(first: 3)
-
 	takeSignal.observe(subscriber)
+    
+    
 	observer.send(value: 1)
 	observer.send(value: 2)
 	observer.send(value: 3)
 	observer.send(value: 4)
+    
 }
 
 /*:
@@ -238,19 +260,57 @@ Returns a signal that will yield an array of values when `self` completes.
 an empty array of values.
 */
 scopedExample("`collect`") {
+    
 	let (signal, observer) = Signal<Int, NoError>.pipe()
-	// note that the signal is of type `Int` and observer is of type `[Int]` given we're "collecting"
-	// `Int` values for the lifetime of the signal
-	let subscriber = Observer<[Int], NoError>(value: { print("Subscriber received \($0)") } )
+    
 	let collectSignal = signal.collect()
-
+    
+    let subscriber = Observer<[Int], NoError>(value: { print("Subscriber received \($0)") } )
 	collectSignal.observe(subscriber)
+    
 	observer.send(value: 1)
 	observer.send(value: 2)
 	observer.send(value: 3)
 	observer.send(value: 4)
+    
 	observer.sendCompleted()
+    
 }
+
+scopedExample("`collect_predicate1`") {
+    let (signal, observer) = Signal<Int, NoError>.pipe()
+    
+    let collectSignal = signal.collect { values in values.reduce(0, +) == 8  }
+    collectSignal.observeValues { print($0) }
+    
+    observer.send(value: 1)
+    observer.send(value: 3)
+    observer.send(value: 4)
+    observer.send(value: 7)
+    observer.send(value: 1)
+    observer.send(value: 5)
+    observer.send(value: 6)
+    
+    observer.sendCompleted()
+
+}
+
+scopedExample("`collect_predicate2`") {
+    let (signal, observer) = Signal<Int, NoError>.pipe()
+
+     let collectSignal = signal.collect { values, value in value == 7 }
+     collectSignal.observeValues { print($0) }
+
+    observer.send(value: 1)
+    observer.send(value: 1)
+    observer.send(value: 7)
+    observer.send(value: 7)
+    observer.send(value: 5)
+    observer.send(value: 6)
+    
+    observer.sendCompleted()
+}
+
 
 
 scopedExample("`observer_action`") {
