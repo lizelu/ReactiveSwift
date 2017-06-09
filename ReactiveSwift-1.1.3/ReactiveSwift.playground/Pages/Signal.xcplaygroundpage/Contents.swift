@@ -266,9 +266,11 @@ scopedExample("`collect`") {
 }
 
 scopedExample("`collect_predicate1`") {
+    
     let (signal, observer) = Signal<Int, NoError>.pipe()
     
     let collectSignal = signal.collect { values in values.reduce(0, +) == 8 }
+    
     collectSignal.observeValues { print($0) }
     
     observer.send(value: 1)
@@ -284,10 +286,12 @@ scopedExample("`collect_predicate1`") {
 }
 
 scopedExample("`collect_predicate2`") {
+    
     let (signal, observer) = Signal<Int, NoError>.pipe()
 
-     let collectSignal = signal.collect { values, value in value == 7 }
-     collectSignal.observeValues { print($0) }
+    let collectSignal: Signal<[Int], NoError> = signal.collect { values, value in value == 7 }
+    
+    collectSignal.observeValues { print($0) }
 
     observer.send(value: 1)
     observer.send(value: 1)
@@ -297,6 +301,7 @@ scopedExample("`collect_predicate2`") {
     observer.send(value: 6)
     
     observer.sendCompleted()
+    
 }
 
 
