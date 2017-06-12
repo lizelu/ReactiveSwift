@@ -265,6 +265,31 @@ scopedExample("`collect`") {
     
 }
 
+/*:
+ ### `collect`
+ Returns a signal that will yield an array of values when `self` completes.
+ - Note: When `self` completes without collecting any value, it will send
+ an empty array of values.
+ */
+scopedExample("`collect_count`") {
+    
+    let (signal, observer) = Signal<Int, NoError>.pipe()
+    
+    let collectSignal = signal.collect(count: 3)
+    
+    let subscriber = Observer<[Int], NoError>(value: { print("Subscriber received \($0)") } )
+    collectSignal.observe(subscriber)
+    
+    observer.send(value: 1)
+    observer.send(value: 2)
+    observer.send(value: 3)
+    observer.send(value: 4)
+    observer.send(value: 5)
+    
+    observer.sendCompleted()
+    
+}
+
 scopedExample("`collect_predicate1`") {
     
     let (signal, observer) = Signal<Int, NoError>.pipe()
@@ -275,7 +300,7 @@ scopedExample("`collect_predicate1`") {
     
     observer.send(value: 1)
     observer.send(value: 3)
-    observer.send(value: 4)
+    observer.send(value: 5)
     observer.send(value: 7)
     observer.send(value: 1)
     observer.send(value: 5)
