@@ -958,11 +958,13 @@ extension SignalProtocol {
 				observer.send(value: (signalState.latestValue!, otherState.latestValue!))
 			}
 
-			let observer = Signal<(), Error>.Observer(value: onBothValue, failed: observer.send(error:), completed: observer.sendCompleted, interrupted: observer.sendInterrupted)
+			let observerDelegate = Signal<(), Error>.Observer(value: onBothValue, failed: observer.send(error:), completed: observer.sendCompleted, interrupted: observer.sendInterrupted)
 
 			let disposable = CompositeDisposable()
-			disposable += self.observeWithStates(signalState, otherState, lock, observer)
-			disposable += other.observeWithStates(otherState, signalState, lock, observer)
+			
+			disposable += self.observeWithStates(signalState, otherState, lock, observerDelegate)
+			
+			disposable += other.observeWithStates(otherState, signalState, lock, observerDelegate)
 			
 			return disposable
 		}

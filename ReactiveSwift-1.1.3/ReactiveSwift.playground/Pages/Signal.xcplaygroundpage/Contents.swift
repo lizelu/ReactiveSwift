@@ -329,6 +329,24 @@ scopedExample("`collect_predicate2`") {
     
 }
 
+scopedExample("combineLatest") {
+    
+    let (signalString, observerString) = Signal<String, NoError>.pipe()
+    let (signalInt, observerInt) = Signal<Int, NoError>.pipe()
+    
+    let combineLatestSignal = signalString.combineLatest(with: signalInt)
+    combineLatestSignal.observeValues({ (value) in
+        print(value)
+    })
+    
+    observerString.send(value: "A")
+    observerString.send(value: "B")
+    observerInt.send(value: 1)
+    observerString.send(value: "C")
+    observerInt.send(value: 2)
+
+}
+
 
 
 scopedExample("`observer_action`") {
