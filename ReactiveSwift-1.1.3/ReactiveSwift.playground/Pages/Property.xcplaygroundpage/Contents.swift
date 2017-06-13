@@ -52,7 +52,7 @@ scopedExample("Creation") {
     
     
     //再次添加装饰器
-    let constant = Property(value: 1)
+    let constant = Property(value: property)
     
     print("\n\n")
 }
