@@ -258,3 +258,11 @@ scopedExample("`flatten`") {
     print("\n")
 
 }
+
+
+scopedExample("`Lifetime`") {
+    
+}
+
+ print("\n")
+ print("\n")
