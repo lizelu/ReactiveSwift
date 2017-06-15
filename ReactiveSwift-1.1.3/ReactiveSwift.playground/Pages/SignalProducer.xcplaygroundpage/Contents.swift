@@ -50,6 +50,34 @@ is started—for example, `times`.
 A SignalProducer represents an operation that can be started on demand. Starting the operation returns a Signal on which the result(s) of the operation can be observed. This behavior is sometimes also called "cold".
 This means that a subscriber will never miss any values sent by the SignalProducer.
 */
+scopedExample("SignalProducer(startHandler)") {
+    
+    let producer = SignalProducer<Int, NoError>({ (observer, compositeDisposable) in
+        observer.send(value: 111)
+    })
+    
+    producer.startWithSignal({ (signal, disposable) in
+        let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })
+        signal.observe(subscriber1)
+        
+        //disposable.dispose()
+    })
+}
+
+scopedExample("SignalProducer(signal)") {
+    let (mySignal, myObserver) = Signal<Int, NoError>.pipe()
+    
+    let producer = SignalProducer<Int, NoError>(mySignal)
+    producer.startWithSignal({ (signal, disposable) in
+        let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })
+        signal.observe(subscriber1)
+    })
+    
+    
+    myObserver.send(value: 000)
+    myObserver.send(value: 111)
+}
+
 
 scopedExample("Subscription") {
 	let producer = SignalProducer<Int, NoError> { observer, _ in
