@@ -57,7 +57,7 @@ scopedExample("SignalProducer(startHandler)") {
     })
     
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })
+        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
         
         //disposable.dispose()
@@ -69,7 +69,7 @@ scopedExample("SignalProducer(signal)") {
     
     let producer = SignalProducer<Int, NoError>(mySignal)
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })
+        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
     })
     
@@ -77,6 +77,46 @@ scopedExample("SignalProducer(signal)") {
     myObserver.send(value: 000)
     myObserver.send(value: 111)
 }
+
+scopedExample("SignalProducer(Value)") {
+    
+    let producer = SignalProducer<Int, NoError>(value: 2222)
+    
+    producer.startWithSignal({ (signal, disposable) in
+        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+        signal.observe(subscriber1)
+    })
+}
+
+scopedExample("SignalProducer(action)") {
+    
+    let producer = SignalProducer<Int, NoError>({ () -> Int in
+        return 3333
+    })
+    
+    producer.startWithSignal({ (signal, disposable) in
+        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+        signal.observe(subscriber1)
+    })
+}
+
+scopedExample("SignalProducer(sequence)") {
+    let producer = SignalProducer<Int, NoError>([10, 20, 30, 40])
+    producer.startWithSignal({ (signal, disposable) in
+        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+        signal.observe(subscriber1)
+    })
+}
+
+scopedExample("SignalProducer(first, second, tail)") {
+    let producer = SignalProducer<Int, NoError>(values: 10, 20, 30, 40, 50)
+    producer.startWithSignal({ (signal, disposable) in
+        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+        signal.observe(subscriber1)
+    })
+}
+
+
 
 
 scopedExample("Subscription") {
