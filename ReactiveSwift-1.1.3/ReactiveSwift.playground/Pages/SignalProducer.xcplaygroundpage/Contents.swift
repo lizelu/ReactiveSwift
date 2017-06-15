@@ -119,23 +119,66 @@ scopedExample("SignalProducer(first, second, tail)") {
     })
 }
 
-scopedExample("start(observer)") {
+scopedExample("start(eg)") {
 	let producer = SignalProducer<Int, NoError>(value: 555)
     
-	let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+	let subscriber1 = Observer<Int, NoError>(value: { (value) in
+        print(value)
+    })
     
 	producer.start(subscriber1)
-}
-
-scopedExample("start(observerAction)") {
-    let producer = SignalProducer<Int, NoError>(value: 666)
+    
+    producer.startWithSignal({ (signal, disposable) in
+        signal.observe(subscriber1)
+    })
     
     producer.start({ (event) in
         if case let Event.value(value) = event {
-            print("value: \(value)")
+            print("action-value: \(value)")
         }
     })
+    
+    producer.startWithValues({ (value) in
+        print("value: \(value)")
+    })
+    
 }
+
+
+
+
+scopedExample("lift(transform)") {
+    let producer = SignalProducer<Int, NoError>({ (observer, disposable) in
+        observer.send(value: 8888)
+    })
+    
+    let liftProducer = producer.lift({ (signal) -> Signal<String, NoError> in
+        return signal.map {value -> String in
+            return "value: \(value)"
+        }
+    })
+    
+    let observer1 = Observer<String, NoError>(value: { (value) in
+        print("observer1 = \(value)")
+    })
+    let observer2 = Observer<String, NoError>(value: { (value) in
+        print("observer2 = \(value)")
+    })
+    let observer3 = Observer<String, NoError>(value: { (value) in
+        print("observer3 = \(value)")
+    })
+    
+    liftProducer.startWithSignal({ (signal, disposable) in
+        signal.observe(observer1)
+        signal.observe(observer2)
+        signal.observe(observer3)
+    })
+    
+    liftProducer.startWithValues({ (value) in
+        print(value)
+    })
+}
+
 
 
 
