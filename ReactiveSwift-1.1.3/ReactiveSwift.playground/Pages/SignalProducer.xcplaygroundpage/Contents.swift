@@ -56,34 +56,33 @@ scopedExample("SignalProducer(startHandler)") {
         observer.send(value: 111)
     })
     
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
-        
         //disposable.dispose()
     })
 }
 
 scopedExample("SignalProducer(signal)") {
     let (mySignal, myObserver) = Signal<Int, NoError>.pipe()
-    
     let producer = SignalProducer<Int, NoError>(mySignal)
+    
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
     })
-    
     
     myObserver.send(value: 000)
     myObserver.send(value: 111)
 }
 
 scopedExample("SignalProducer(Value)") {
-    
     let producer = SignalProducer<Int, NoError>(value: 2222)
     
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
     })
 }
@@ -94,44 +93,52 @@ scopedExample("SignalProducer(action)") {
         return 3333
     })
     
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
     })
 }
 
 scopedExample("SignalProducer(sequence)") {
     let producer = SignalProducer<Int, NoError>([10, 20, 30, 40])
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
     })
 }
 
 scopedExample("SignalProducer(first, second, tail)") {
     let producer = SignalProducer<Int, NoError>(values: 10, 20, 30, 40, 50)
+    
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    
     producer.startWithSignal({ (signal, disposable) in
-        let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
         signal.observe(subscriber1)
+    })
+}
+
+scopedExample("start(observer)") {
+	let producer = SignalProducer<Int, NoError>(value: 555)
+    
+	let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    
+	producer.start(subscriber1)
+}
+
+scopedExample("start(observerAction)") {
+    let producer = SignalProducer<Int, NoError>(value: 666)
+    
+    producer.start({ (event) in
+        if case let Event.value(value) = event {
+            print("value: \(value)")
+        }
     })
 }
 
 
 
-
-scopedExample("Subscription") {
-	let producer = SignalProducer<Int, NoError> { observer, _ in
-
-		observer.send(value: 111111)
-
-	}
-
-	let subscriber1 = Observer<Int, NoError>(value: { print("Subscriber 1 received \($0)") })
-	let subscriber2 = Observer<Int, NoError>(value: { print("Subscriber 2 received \($0)") })
-    
-	producer.start(subscriber1)
-	producer.start(subscriber2)
-}
 
 /*:
 ### `empty`
