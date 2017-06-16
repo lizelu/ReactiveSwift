@@ -146,7 +146,6 @@ scopedExample("start(eg)") {
     producer.startWithValues({ (value) in
         print("value: \(value)")
     })
-    
 }
 
 
@@ -179,9 +178,6 @@ scopedExample("lift(transform)") {
         signal.observe(observer3)
     })
     
-    liftProducer.startWithValues({ (value) in
-        print(value)
-    })
 }
 
 
