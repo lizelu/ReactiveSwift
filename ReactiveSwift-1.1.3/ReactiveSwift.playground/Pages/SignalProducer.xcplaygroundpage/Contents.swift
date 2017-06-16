@@ -68,14 +68,17 @@ scopedExample("SignalProducer(startHandler)") {
 
 scopedExample("SignalProducer(signal)") {
     let (mySignal, myObserver) = Signal<Int, NoError>.pipe()
+    
     let producer = SignalProducer<Int, NoError>(mySignal)
     
-    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    let subscriber1 = Observer<Int, NoError>(value: { (value) in
+        print("\(value)")
+    })
     producer.startWithSignal({ (signal, disposable) in
         signal.observe(subscriber1)
     })
     
-    myObserver.send(value: 000)
+    myObserver.send(value: 100)
     myObserver.send(value: 111)
 }
 
@@ -104,18 +107,18 @@ scopedExample("SignalProducer(action)") {
 
 scopedExample("SignalProducer(sequence)") {
     let producer = SignalProducer<Int, NoError>([10, 20, 30, 40])
-    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
     
+    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
     producer.startWithSignal({ (signal, disposable) in
         signal.observe(subscriber1)
     })
 }
 
 scopedExample("SignalProducer(first, second, tail)") {
+    
     let producer = SignalProducer<Int, NoError>(values: 10, 20, 30, 40, 50)
     
     let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
-    
     producer.startWithSignal({ (signal, disposable) in
         signal.observe(subscriber1)
     })
