@@ -56,7 +56,9 @@ scopedExample("SignalProducer(startHandler)") {
         observer.send(value: 111)
     })
     
-    let subscriber1 = Observer<Int, NoError>(value: { print("\($0)") })
+    let subscriber1 = Observer<Int, NoError>(value: { (value) in
+        print("\(value)")
+    })
     
     producer.startWithSignal({ (signal, disposable) in
         signal.observe(subscriber1)
