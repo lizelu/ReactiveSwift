@@ -150,7 +150,6 @@ scopedExample("start(eg)") {
 
 
 
-
 scopedExample("lift(transform)") {
     let producer = SignalProducer<Int, NoError>({ (observer, disposable) in
         observer.send(value: 8888)
@@ -180,6 +179,35 @@ scopedExample("lift(transform)") {
     
 }
 
+
+scopedExample("liftRight") { 
+    let producer = SignalProducer<Int, NoError>({ (observer, disposable) in
+        observer.send(value: 9999)
+    })
+    
+    let strProducer = SignalProducer<String, NoError>({ (observer, disposable) in
+        observer.send(value: "String Producer")
+    })
+    
+    typealias LiftRightProducerClosureType = (SignalProducer<String, NoError>) -> SignalProducer<String, NoError>
+    
+    typealias ClosureRetureType = (Signal<String, NoError>) -> Signal<String, NoError>
+    
+    let liftRightProducerClosure: LiftRightProducerClosureType = producer.lift({ (signal) -> ClosureRetureType in
+        return {otherSignal in
+            return signal.map {value -> String in
+                return "Map value: \(value)"
+            }
+        }
+    })
+    
+    let otherProducer = liftRightProducerClosure(strProducer)
+    
+    otherProducer.startWithValues({ (value) in
+        print("otherProducer: \(value)")
+    })
+    
+}
 
 
 
