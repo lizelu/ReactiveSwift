@@ -177,26 +177,22 @@ scopedExample("lift(transform)") {
         signal.observe(observer3)
         
     })
-    
 }
 
 
 scopedExample("liftRight") { 
-    let producer = SignalProducer<Int, NoError>({ (observer, disposable) in
-        observer.send(value: 9999)
+    let producer = SignalProducer<String, NoError>({ (observer, disposable) in
+        observer.send(value: "9999")
     })
     
     typealias LiftRightProducerClosureType = (SignalProducer<String, NoError>) -> SignalProducer<(String, String), NoError>
     
     typealias ClosureRetureType = (Signal<String, NoError>) -> Signal<(String, String), NoError>
     
-    let liftRightProducerClosure: LiftRightProducerClosureType = producer.liftRight({ (signal) -> ClosureRetureType in
-        let tempSignal = signal.map {value -> String in
-            return "\(value)"
-        }
-        
-        return {otherSignal in
-            return tempSignal.combineLatest(with: otherSignal)
+    let liftRightProducerClosure: LiftRightProducerClosureType = producer.liftRight({ signal -> ClosureRetureType in
+
+        return {otherSignal -> Signal<(String, String), NoError> in
+            return signal.combineLatest(with: otherSignal)
             
         }
     })
