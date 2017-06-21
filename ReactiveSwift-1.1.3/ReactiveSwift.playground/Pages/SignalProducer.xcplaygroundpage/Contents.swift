@@ -236,17 +236,16 @@ scopedExample("liftRight & liftLeft") {
         observer.send(value: "0")
         observer.send(value: "1")
         observer.send(value: "2")
-        observer.send(value: "3")
     })
     
     let producer2 = SignalProducer<String, NoError>({ (observer, disposable) in
         observer.send(value: "A")
         observer.send(value: "B")
         observer.send(value: "C")
-        observer.send(value: "D")
     })
     
-    typealias LiftClosureType = (SignalProducer<String, NoError>) -> SignalProducer<(String, String), NoError>
+    typealias LiftClosureType =
+        (SignalProducer<String, NoError>) -> SignalProducer<(String, String), NoError>
     
     print("liftRight:")
     let liftRightProducerClosure: LiftClosureType = producer1.liftRight(Signal.combineLatest)
