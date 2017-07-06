@@ -96,9 +96,11 @@ scopedExample("Binding from Signal") {
     
     print("Sending new value on signal: 1")
     observer.send(value: 1)
+    print(property.value)
     
     print("Sending new value on signal: 2")
     observer.send(value: 2)
+    print(property.value)
 }
 
 scopedExample("Binding from other Property") {

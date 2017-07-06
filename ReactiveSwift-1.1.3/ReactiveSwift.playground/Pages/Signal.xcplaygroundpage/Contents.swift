@@ -408,3 +408,13 @@ scopedExample("`observer_action`") {
 
 }
 
+scopedExample("`take: lifetime`") {
+    let (lifetime, toke) = Lifetime.make()
+    
+    let (signal, observer) = Signal<Int, NSError>.pipe()
+    
+    signal.take(during: lifetime).observeCompleted {
+        print("life time ended")
+    }
+}
+
