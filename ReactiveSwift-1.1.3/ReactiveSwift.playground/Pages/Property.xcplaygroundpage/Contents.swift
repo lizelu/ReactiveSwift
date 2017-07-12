@@ -25,6 +25,37 @@ import Foundation
  - The `signal` getter returns a [signal](Signal) that will send all changes over time, but not the initial value.
  
  */
+scopedExample("MutableProperty-signal") {
+    //创建可变的属性
+    let mutableProperty = MutableProperty(1)
+    
+    mutableProperty.signal.observeValues{ value in
+        print("didSetValue: \(value)")
+    }
+    
+    mutableProperty.value = 10
+    
+    print(mutableProperty.withValue{ $0 })
+    print(mutableProperty.value)
+}
+
+scopedExample("MutableProperty-producer") {
+    
+    //创建可变的属性
+    let mutableProperty = MutableProperty(1)
+    
+    mutableProperty.producer.startWithValues({ (value) in
+        print("didSetValue: \(value)")
+    })
+    
+    mutableProperty.value = 10
+    
+    print(mutableProperty.withValue{ $0 })
+    print(mutableProperty.value)
+    
+}
+
+
 scopedExample("Creation") {
     //创建可变的属性
     let mutableProperty = MutableProperty(1)
